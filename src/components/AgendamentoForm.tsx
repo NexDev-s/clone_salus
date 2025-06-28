@@ -47,6 +47,7 @@ const AgendamentoForm = ({ onBack, onSave }: AgendamentoFormProps) => {
       }
 
       console.log('📥 DEBUG: AgendamentoForm - Carregando dados para usuário:', currentUser.email);
+      console.log('🔍 DEBUG: AgendamentoForm - ID do usuário:', currentUser.id);
       setLoadingData(true);
       
       try {
@@ -55,8 +56,8 @@ const AgendamentoForm = ({ onBack, onSave }: AgendamentoFormProps) => {
           getProfessionals()
         ]);
         
-        console.log('✅ DEBUG: AgendamentoForm - Pacientes carregados:', patientsData);
-        console.log('✅ DEBUG: AgendamentoForm - Profissionais carregados:', professionalsData);
+        console.log('✅ DEBUG: AgendamentoForm - Pacientes carregados:', patientsData.length, patientsData);
+        console.log('✅ DEBUG: AgendamentoForm - Profissionais carregados:', professionalsData.length, professionalsData);
         
         setPatients(patientsData);
         setProfessionals(professionalsData);
@@ -102,12 +103,20 @@ const AgendamentoForm = ({ onBack, onSave }: AgendamentoFormProps) => {
       observacoes: observacoes || null
     };
 
-    console.log('💾 DEBUG: AgendamentoForm - Dados do agendamento:', agendamentoData);
+    console.log('💾 DEBUG: AgendamentoForm - Dados do agendamento a serem salvos:', agendamentoData);
+    console.log('💾 DEBUG: AgendamentoForm - Paciente selecionado:', pacienteSelecionado);
+    console.log('💾 DEBUG: AgendamentoForm - Profissional selecionado:', profissionalSelecionado);
+    console.log('💾 DEBUG: AgendamentoForm - Data/hora:', dataAgendamento, horaAgendamento);
     
     const resultado = await createAppointment(agendamentoData);
     
+    console.log('✅ DEBUG: AgendamentoForm - Resultado do salvamento:', resultado);
+    
     if (resultado) {
+      console.log('🎉 DEBUG: AgendamentoForm - Agendamento salvo com sucesso, chamando onSave()');
       onSave();
+    } else {
+      console.log('❌ DEBUG: AgendamentoForm - Falha ao salvar agendamento');
     }
     
     setSalvando(false);

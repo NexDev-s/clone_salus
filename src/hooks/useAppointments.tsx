@@ -30,11 +30,12 @@ export const useAppointments = () => {
       const currentUser = user || session?.user;
       
       if (!currentUser) {
-        console.log('❌ Usuário não autenticado para buscar agendamentos');
+        console.log('❌ DEBUG: getAppointments - Usuário não autenticado');
         return [];
       }
       
-      console.log('✅ Usuário autenticado, buscando agendamentos:', currentUser.email);
+      console.log('✅ DEBUG: getAppointments - Usuário autenticado:', currentUser.email);
+      console.log('🔍 DEBUG: getAppointments - ID do usuário:', currentUser.id);
       
       // Buscar agendamentos com dados de pacientes e profissionais
       const { data, error } = await supabase
@@ -48,21 +49,39 @@ export const useAppointments = () => {
         .order('data_agendamento', { ascending: true });
       
       if (error) {
-        console.error('❌ Erro ao buscar agendamentos:', error);
+        console.error('❌ DEBUG: getAppointments - Erro na query:', error);
         throw error;
       }
       
-      console.log('📊 Agendamentos encontrados:', data?.length || 0);
-      console.log('📄 Dados dos agendamentos:', data);
+      console.log('📊 DEBUG: getAppointments - Raw data from Supabase:', data);
+      console.log('📊 DEBUG: getAppointments - Quantidade encontrada:', data?.length || 0);
+      
+      // Log detalhado de cada agendamento
+      data?.forEach((apt, index) => {
+        console.log(`📋 DEBUG: Agendamento ${index + 1}:`, {
+          id: apt.id,
+          patient_id: apt.patient_id,
+          professional_id: apt.professional_id,
+          data_agendamento: apt.data_agendamento,
+          tipo: apt.tipo,
+          status: apt.status,
+          patient_nome: apt.patient?.nome,
+          professional_nome: apt.professional?.nome
+        });
+      });
       
       // Formatar dados para uso no front-end
-      return data?.map(item => ({
+      const formattedData = data?.map(item => ({
         ...item,
         patientName: item.patient?.nome,
         professionalName: item.professional?.nome
       })) || [];
+      
+      console.log('✅ DEBUG: getAppointments - Dados formatados:', formattedData);
+      
+      return formattedData;
     } catch (error: any) {
-      console.error('Erro ao buscar agendamentos:', error);
+      console.error('❌ DEBUG: getAppointments - Erro geral:', error);
       
       // Só mostrar toast se o usuário estiver autenticado
       const currentUser = user || session?.user;
@@ -133,41 +152,45 @@ export const useAppointments = () => {
         throw new Error('Usuário não autenticado');
       }
       
+      console.log('💾 DEBUG: createAppointment - Usuário:', currentUser.email);
+      console.log('💾 DEBUG: createAppointment - Dados recebidos:', appointmentData);
+      
+      const dataToInsert = { 
+        ...appointmentData, 
+        user_id: currentUser.id 
+      };
+      
+      console.log('💾 DEBUG: createAppointment - Dados para inserir:', dataToInsert);
+      
       const { data, error } = await supabase
         .from('appointments')
-        .insert([{ ...appointmentData, user_id: currentUser.id }])
-        .select()
+        .insert([dataToInsert])
+        .select(`
+          *,
+          patient:patients(nome),
+          professional:professionals(nome)
+        `)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ DEBUG: createAppointment - Erro na inserção:', error);
+        throw error;
+      }
+      
+      console.log('✅ DEBUG: createAppointment - Agendamento criado:', data);
       
       toast({
         title: 'Agendamento criado com sucesso!',
         description: `O agendamento foi marcado para ${new Date(appointmentData.data_agendamento).toLocaleDateString()}.`,
       });
       
-      // Buscar nomes do paciente e profissional
-      const patientRes = await supabase
-        .from('patients')
-        .select('nome')
-        .eq('id', appointmentData.patient_id)
-        .eq('user_id', currentUser.id)
-        .single();
-        
-      const professionalRes = await supabase
-        .from('professionals')
-        .select('nome')
-        .eq('id', appointmentData.professional_id)
-        .eq('user_id', currentUser.id)
-        .single();
-      
       return {
         ...data,
-        patientName: patientRes.data?.nome,
-        professionalName: professionalRes.data?.nome
+        patientName: data.patient?.nome,
+        professionalName: data.professional?.nome
       };
     } catch (error: any) {
-      console.error('Erro ao criar agendamento:', error);
+      console.error('❌ DEBUG: createAppointment - Erro geral:', error);
       toast({
         title: 'Erro ao criar agendamento',
         description: error.message || 'Não foi possível criar o agendamento',

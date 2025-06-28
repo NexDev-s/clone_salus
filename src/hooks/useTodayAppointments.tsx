@@ -22,16 +22,18 @@ export const useTodayAppointments = () => {
     const currentUser = user || session?.user;
     
     if (!currentUser) {
-      console.log('⏳ Aguardando autenticação para carregar agendamentos...');
+      console.log('⏳ DEBUG: useTodayAppointments - Aguardando autenticação...');
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      console.log('📅 Carregando agendamentos de hoje para usuário:', currentUser.id);
+      console.log('📅 DEBUG: useTodayAppointments - Carregando agendamentos para usuário:', currentUser.email);
+      console.log('🔍 DEBUG: useTodayAppointments - ID do usuário:', currentUser.id);
       
       const hoje = new Date().toISOString().split('T')[0];
+      console.log('📅 DEBUG: useTodayAppointments - Data de hoje:', hoje);
       
       const { data, error } = await supabase
         .from('appointments')
@@ -46,26 +48,34 @@ export const useTodayAppointments = () => {
         .order('data_agendamento', { ascending: true });
 
       if (error) {
-        console.error('❌ Erro ao buscar agendamentos:', error);
+        console.error('❌ DEBUG: useTodayAppointments - Erro na query:', error);
         throw error;
       }
 
-      const formattedAppointments = data?.map(apt => ({
-        id: apt.id,
-        time: new Date(apt.data_agendamento).toLocaleTimeString('pt-BR', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        }),
-        patient: apt.patient?.nome || 'Paciente não encontrado',
-        doctor: apt.professional?.nome || 'Profissional não encontrado',
-        type: apt.tipo || 'Consulta',
-        status: apt.status || 'agendado'
-      })) || [];
+      console.log('📊 DEBUG: useTodayAppointments - Raw data:', data);
+      console.log('📊 DEBUG: useTodayAppointments - Quantidade encontrada:', data?.length || 0);
 
-      console.log('✅ Agendamentos de hoje carregados:', formattedAppointments.length);
+      const formattedAppointments = data?.map(apt => {
+        const formatted = {
+          id: apt.id,
+          time: new Date(apt.data_agendamento).toLocaleTimeString('pt-BR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }),
+          patient: apt.patient?.nome || 'Paciente não encontrado',
+          doctor: apt.professional?.nome || 'Profissional não encontrado',
+          type: apt.tipo || 'Consulta',
+          status: apt.status || 'agendado'
+        };
+        
+        console.log('📋 DEBUG: useTodayAppointments - Agendamento formatado:', formatted);
+        return formatted;
+      }) || [];
+
+      console.log('✅ DEBUG: useTodayAppointments - Agendamentos de hoje formatados:', formattedAppointments);
       setAppointments(formattedAppointments);
     } catch (error) {
-      console.error('❌ Erro ao carregar agendamentos de hoje:', error);
+      console.error('❌ DEBUG: useTodayAppointments - Erro geral:', error);
       setAppointments([]);
     } finally {
       setLoading(false);
@@ -76,9 +86,10 @@ export const useTodayAppointments = () => {
     const currentUser = user || session?.user;
     
     if (currentUser) {
-      console.log('🔄 Iniciando carregamento de agendamentos de hoje...');
+      console.log('🔄 DEBUG: useTodayAppointments - Iniciando carregamento...');
       loadTodayAppointments();
     } else {
+      console.log('⏳ DEBUG: useTodayAppointments - Sem usuário autenticado');
       setLoading(false);
       setAppointments([]);
     }
