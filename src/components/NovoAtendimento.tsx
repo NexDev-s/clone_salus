@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, User, Stethoscope, FileText, Save, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ const NovoAtendimento = ({ onBack }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
 
   const { getPatients } = usePatients();
   const { getProfessionals } = useProfessionals();
@@ -38,45 +40,44 @@ const NovoAtendimento = ({ onBack }) => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
 
-  // Memoizar função de carregamento para evitar loops
-  const loadData = useCallback(async () => {
-    if (authLoading || !user) {
-      console.log('⏳ Aguardando autenticação ou usuário não disponível');
+  // Carregar dados apenas uma vez quando o usuário estiver autenticado
+  useEffect(() => {
+    if (authLoading || !user || hasLoadedData) {
       return;
     }
 
-    console.log('📥 Carregando dados do atendimento...');
-    setLoadingData(true);
-    
-    try {
-      const [patientsData, professionalsData] = await Promise.all([
-        getPatients(),
-        getProfessionals()
-      ]);
+    const loadData = async () => {
+      console.log('📥 Carregando dados do atendimento...');
+      setLoadingData(true);
       
-      console.log('✅ Dados carregados - Pacientes:', patientsData.length, 'Profissionais:', professionalsData.length);
-      
-      setPatients(patientsData);
-      setProfessionals(professionalsData);
-    } catch (error) {
-      console.error('❌ Erro ao carregar dados:', error);
-      
-      if (!error?.message?.includes('Failed to fetch')) {
-        toast({
-          title: "Erro ao carregar dados",
-          description: "Não foi possível carregar pacientes e profissionais. Tente novamente.",
-          variant: "destructive",
-        });
+      try {
+        const [patientsData, professionalsData] = await Promise.all([
+          getPatients(),
+          getProfessionals()
+        ]);
+        
+        console.log('✅ Dados carregados - Pacientes:', patientsData.length, 'Profissionais:', professionalsData.length);
+        
+        setPatients(patientsData);
+        setProfessionals(professionalsData);
+        setHasLoadedData(true);
+      } catch (error) {
+        console.error('❌ Erro ao carregar dados:', error);
+        
+        if (!error?.message?.includes('Failed to fetch')) {
+          toast({
+            title: "Erro ao carregar dados",
+            description: "Não foi possível carregar pacientes e profissionais. Tente novamente.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setLoadingData(false);
       }
-    } finally {
-      setLoadingData(false);
-    }
-  }, [authLoading, user, getPatients, getProfessionals, toast]);
+    };
 
-  // Carregar dados apenas quando necessário
-  useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [authLoading, user?.id, hasLoadedData]); // Dependências simplificadas e estáveis
 
   const handleSalvar = async () => {
     if (!pacienteSelecionado || !profissionalSelecionado) {
