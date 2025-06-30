@@ -1,8 +1,8 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { sendAppointmentButton, sendAppointmentConfirmation } from '@/integrations/whatsapp';
 
 export interface Appointment {
   id: string;
@@ -167,7 +167,7 @@ export const useAppointments = () => {
         .insert([dataToInsert])
         .select(`
           *,
-          patient:patients(nome),
+          patient:patients(nome, telefone),
           professional:professionals(nome)
         `)
         .single();
@@ -179,9 +179,33 @@ export const useAppointments = () => {
       
       console.log('✅ DEBUG: createAppointment - Agendamento criado:', data);
       
+      // Enviar mensagem de confirmação via WhatsApp
+      if (data.patient?.telefone) {
+        try {
+          console.log('📱 DEBUG: Enviando confirmação via WhatsApp para:', data.patient.telefone);
+          
+          // Tentar enviar com botões primeiro, se falhar usa mensagem simples
+          await sendAppointmentButton(
+            data.patient.telefone,
+            data.patient.nome || 'Paciente',
+            data.professional?.nome || 'Profissional',
+            data.data_agendamento,
+            data.tipo,
+            data.id
+          );
+          
+          console.log('✅ DEBUG: Mensagem WhatsApp enviada com sucesso');
+        } catch (whatsappError) {
+          console.warn('⚠️ DEBUG: Erro ao enviar WhatsApp (agendamento criado com sucesso):', whatsappError);
+          // Não falhar o agendamento se o WhatsApp falhar
+        }
+      } else {
+        console.warn('⚠️ DEBUG: Paciente sem telefone, WhatsApp não enviado');
+      }
+      
       toast({
         title: 'Agendamento criado com sucesso!',
-        description: `O agendamento foi marcado para ${new Date(appointmentData.data_agendamento).toLocaleDateString()}.`,
+        description: `O agendamento foi marcado para ${new Date(appointmentData.data_agendamento).toLocaleDateString()}. ${data.patient?.telefone ? 'Confirmação enviada via WhatsApp.' : ''}`,
       });
       
       return {
