@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import ProfessionalForm from './ProfessionalForm';
 import ProfessionalAgenda from './ProfessionalAgenda';
 import { useProfessionals, Professional } from '@/hooks/useProfessionals';
+import { useAuth } from '@/hooks/useAuth';
 
 const ProfessionalManagement = ({ onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,22 +19,58 @@ const ProfessionalManagement = ({ onBack }) => {
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [especialidadeFilter, setEspecialidadeFilter] = useState('todas');
   const [statusFilter, setStatusFilter] = useState('ativo');
+  const [isLoading, setIsLoading] = useState(true);
   const { getProfessionals, loading } = useProfessionals();
+  const { user, loading: authLoading } = useAuth();
 
-  useEffect(() => {
-    const loadProfessionals = async () => {
+  // Função para carregar profissionais
+  const loadProfessionals = async () => {
+    console.log('🔄 DEBUG: ProfessionalManagement - Iniciando carregamento de profissionais');
+    console.log('👤 DEBUG: ProfessionalManagement - Usuário atual:', user?.email);
+    console.log('⏳ DEBUG: ProfessionalManagement - Auth loading:', authLoading);
+    
+    if (authLoading) {
+      console.log('⏳ DEBUG: ProfessionalManagement - Aguardando autenticação...');
+      return;
+    }
+    
+    if (!user) {
+      console.log('❌ DEBUG: ProfessionalManagement - Usuário não autenticado');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      console.log('📥 DEBUG: ProfessionalManagement - Buscando profissionais...');
+      
       const data = await getProfessionals();
+      
+      console.log('✅ DEBUG: ProfessionalManagement - Profissionais recebidos:', data);
+      console.log('📊 DEBUG: ProfessionalManagement - Quantidade:', data.length);
+      
       setProfessionals(data);
-    };
+    } catch (error) {
+      console.error('❌ DEBUG: ProfessionalManagement - Erro ao carregar:', error);
+      setProfessionals([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Carregar profissionais quando o componente montar ou quando a autenticação mudar
+  useEffect(() => {
+    console.log('🔄 DEBUG: ProfessionalManagement - useEffect disparado');
+    console.log('👤 DEBUG: ProfessionalManagement - User ID:', user?.id);
+    console.log('⏳ DEBUG: ProfessionalManagement - Auth loading:', authLoading);
     
     loadProfessionals();
-  }, []);
+  }, [user?.id, authLoading]);
 
   const handleSaveProfessional = async (professionalData) => {
-    // Dados reais são salvos no banco através do hook useProfessionals no ProfessionalForm
-    // Aqui só precisamos atualizar a lista
-    const data = await getProfessionals();
-    setProfessionals(data);
+    console.log('💾 DEBUG: ProfessionalManagement - Profissional salvo, recarregando lista');
+    // Recarregar a lista após salvar
+    await loadProfessionals();
     setShowForm(false);
   };
 
@@ -60,6 +97,8 @@ const ProfessionalManagement = ({ onBack }) => {
     
     return matchesSearch && matchesEspecialidade && matchesStatus;
   });
+
+  console.log('🔍 DEBUG: ProfessionalManagement - Profissionais filtrados:', filteredProfessionals.length);
 
   if (showForm) {
     return <ProfessionalForm onBack={() => setShowForm(false)} onSave={handleSaveProfessional} />;
@@ -159,15 +198,27 @@ const ProfessionalManagement = ({ onBack }) => {
         </Card>
 
         {/* Estado de carregamento */}
-        {loading && (
+        {(isLoading || loading || authLoading) && (
           <div className="text-center py-8">
             <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600 text-lg">Carregando profissionais...</p>
           </div>
         )}
 
+        {/* Debug info */}
+        {!authLoading && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              DEBUG: Usuário: {user?.email || 'Não autenticado'} | 
+              Total profissionais: {professionals.length} | 
+              Filtrados: {filteredProfessionals.length} | 
+              Loading: {isLoading ? 'Sim' : 'Não'}
+            </p>
+          </div>
+        )}
+
         {/* Lista de Profissionais */}
-        {!loading && (
+        {!isLoading && !loading && !authLoading && (
           <div className="grid gap-4">
             {filteredProfessionals.map((professional) => (
               <Card key={professional.id} className="shadow-lg hover:shadow-xl transition-all duration-300 border-emerald-200">
@@ -229,7 +280,7 @@ const ProfessionalManagement = ({ onBack }) => {
           </div>
         )}
 
-        {!loading && filteredProfessionals.length === 0 && (
+        {!isLoading && !loading && !authLoading && filteredProfessionals.length === 0 && (
           <Card className="shadow-lg border-emerald-200">
             <CardContent className="text-center py-12">
               <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -237,7 +288,10 @@ const ProfessionalManagement = ({ onBack }) => {
                 Nenhum profissional encontrado
               </h3>
               <p className="text-gray-600">
-                Tente ajustar os filtros ou cadastre um novo profissional
+                {professionals.length === 0 
+                  ? 'Cadastre seu primeiro profissional para começar'
+                  : 'Tente ajustar os filtros de busca'
+                }
               </p>
             </CardContent>
           </Card>

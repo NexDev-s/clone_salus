@@ -21,44 +21,69 @@ export interface Professional {
 
 export const useProfessionals = () => {
   const [loading, setLoading] = useState(false);
-  const { user, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
   const getProfessionals = async (): Promise<Professional[]> => {
     try {
       setLoading(true);
       
-      // Aguardar autenticação estar completa
+      console.log('🔄 DEBUG: useProfessionals - Iniciando getProfessionals');
+      console.log('⏳ DEBUG: useProfessionals - Auth loading:', authLoading);
+      console.log('👤 DEBUG: useProfessionals - User:', user?.email);
+      console.log('🔐 DEBUG: useProfessionals - Session:', session?.user?.email);
+      
+      // Verificar tanto user quanto session
+      const currentUser = user || session?.user;
+      
       if (authLoading) {
-        console.log('🔒 Aguardando autenticação para carregar profissionais...');
+        console.log('⏳ DEBUG: useProfessionals - Aguardando autenticação...');
         return [];
       }
       
-      if (!user) {
-        console.log('❌ Usuário não autenticado para buscar profissionais');
+      if (!currentUser) {
+        console.log('❌ DEBUG: useProfessionals - Usuário não autenticado');
         return [];
       }
       
-      console.log('✅ Buscando profissionais para usuário:', user.id);
+      console.log('✅ DEBUG: useProfessionals - Usuário autenticado:', currentUser.email);
+      console.log('🔍 DEBUG: useProfessionals - ID do usuário:', currentUser.id);
       
       const { data, error } = await supabase
         .from('professionals')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .order('nome', { ascending: true });
       
       if (error) {
-        console.error('Erro ao buscar profissionais:', error);
+        console.error('❌ DEBUG: useProfessionals - Erro na query:', error);
         throw error;
       }
       
-      console.log('✅ Profissionais encontrados:', data);
+      console.log('📊 DEBUG: useProfessionals - Raw data from Supabase:', data);
+      console.log('📊 DEBUG: useProfessionals - Quantidade encontrada:', data?.length || 0);
+      
+      // Log detalhado de cada profissional
+      data?.forEach((prof, index) => {
+        console.log(`👨‍⚕️ DEBUG: useProfessionals - Profissional ${index + 1}:`, {
+          id: prof.id,
+          nome: prof.nome,
+          especialidade: prof.especialidade,
+          registro: prof.registro,
+          telefone: prof.telefone,
+          email: prof.email,
+          status: prof.status
+        });
+      });
+      
+      console.log('✅ DEBUG: useProfessionals - Retornando dados:', data || []);
       return data || [];
     } catch (error: any) {
-      console.error('Erro ao buscar profissionais:', error);
+      console.error('❌ DEBUG: useProfessionals - Erro geral:', error);
       
       // Só mostrar toast se o usuário estiver autenticado
-      if (user) {
+      const currentUser = user || session?.user;
+      if (currentUser) {
         toast({
           title: 'Erro ao carregar profissionais',
           description: error.message || 'Não foi possível carregar a lista de profissionais',
