@@ -205,18 +205,6 @@ const ProfessionalManagement = ({ onBack }) => {
           </div>
         )}
 
-        {/* Debug info */}
-        {!authLoading && (
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              DEBUG: Usuário: {user?.email || 'Não autenticado'} | 
-              Total profissionais: {professionals.length} | 
-              Filtrados: {filteredProfessionals.length} | 
-              Loading: {isLoading ? 'Sim' : 'Não'}
-            </p>
-          </div>
-        )}
-
         {/* Lista de Profissionais */}
         {!isLoading && !loading && !authLoading && (
           <div className="grid gap-4">
